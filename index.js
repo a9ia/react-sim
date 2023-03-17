@@ -11,7 +11,15 @@ function component() {
   
   ReactDOM.render(element, document.getElementById('root'))
 }
-component()
+class Welcome extends React.Component {
+  render() {
+    return <div>Hello, {this.props.name}!</div>
+  }
+}
+const el = <Welcome name="Sara"/>;
+console.log(el);
+ReactDOM.render(el, document.getElementById('root'));
+// component()
 
 // setInterval(component, 1000)
 

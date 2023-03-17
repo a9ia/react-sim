@@ -6,10 +6,17 @@ function createElement(tags, attrs, ...children) {
   }
 }
 
-function _render (elem, target) {
-  if (typeof elem == 'string') {
+function _render (elem) {
+  if (elem === undefined || elem === null || typeof elem === 'boolean') elem = '';
+  if (typeof elem === 'number') elem = String(elem);
+  if (typeof elem === 'string') {
     const textNode = document.createTextNode(elem);
-    return target.appendChild(textNode);
+    return textNode;
+  }
+  if (typeof elem.tags === 'function') {
+    const component = createComponent(elem.tags, elem.attrs);
+    setComponentProps(component, elem.attrs);
+    return component.base;
   }
   const { tags, attrs, children } = elem;
   const val = document.createElement(tags);
@@ -19,8 +26,8 @@ function _render (elem, target) {
       setAttribute(val, key, value);
     })
   }
-  children.forEach(element => _render(element, val));
-  return target.appendChild(val);
+  children.forEach(element => ReactDOM.render(element, val));
+  return val;
 }
 
 function setAttribute(dom, name, value) {
@@ -48,13 +55,77 @@ function setAttribute(dom, name, value) {
   }
 }
 
+function createComponent(component, props) {
+  let inst;
+  console.log(props)
+  console.log(component)
+  if (component.prototype && component.prototype.render) {
+    inst = new component(props);
+  } else {
+    inst = new Component(props);
+    inst.constructor = component;
+    inst.render = function() {
+      return this.constructor(props);
+    }
+  }
+  return inst;
+}
+
+function setComponentProps(component, props) {
+  if(!component.base) {
+    if (component.componentWillMount) component.componentWillMount();
+  } else if (component.componentWillReceiveProps) {
+    component.componentWillReceiveProps(props);
+  }
+  component.props = props;
+  renderComponent(component);
+}
+
+function renderComponent(component) {
+  let base;
+  const renderer = component.render();
+
+  if(component.base&&component.compontWillUpdate) {
+    component.componentWillUpdate();
+  }
+  base = _render(renderer);
+
+  if(component.base) {
+    if(component.componentDidUpdate) {
+      component.componentDidUpdate();
+    }
+  } else if (component.componentDidMount) {
+    component.componentDidMount();
+  }
+
+  if (component.base && component.base.parentNode) {
+    component.base.parentNode.replaceChild(base, component.base);
+  }
+
+  component.base = base;
+  base._component = component;
+}
+
+class Component {
+  constructor(props = {}) {
+    this.isReactComponent = true;
+    this.state = {};
+    this.props = props;
+  }
+
+  setState(stateChange) {
+    Object.assign(this.state, stateChange);
+    renderComponent();
+  }
+}
+
 export const React = {
-  createElement
+  createElement,
+  Component
 }
 
 export const ReactDOM = {
   render(el, container) {
-    container.innerHTML = '';
-    _render(el, container);
+    container.appendChild(_render(el));
   }
 }
